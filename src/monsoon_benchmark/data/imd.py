@@ -103,11 +103,28 @@ class IMDDataLoader:
         if year in self._cache:
             return self._cache[year]
 
-        filepath = self.download_year(year)
+        # Try multiple file naming patterns
+        patterns = [
+            f"imd_rainfall_{year}_{self.resolution}deg.nc",
+            f"RFone_imd_rf_1x1_{year}.nc",
+            f"RF{year}.nc",
+            f"imd_{year}.nc",
+        ]
+
+        filepath = None
+        for pattern in patterns:
+            candidate = self.data_dir / pattern
+            if candidate.exists():
+                filepath = candidate
+                break
+
+        if filepath is None:
+            # Try the download method (which will warn about manual download)
+            filepath = self.download_year(year)
 
         if not filepath.exists():
             raise FileNotFoundError(
-                f"IMD data file not found: {filepath}. "
+                f"IMD data file not found for {year} in {self.data_dir}. "
                 "Please download from IMD website."
             )
 

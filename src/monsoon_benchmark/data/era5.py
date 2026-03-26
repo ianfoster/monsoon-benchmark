@@ -156,6 +156,160 @@ class ERA5DataLoader:
 
         return filepaths
 
+    def download_precipitation(
+        self,
+        year: int,
+        month: int,
+        area: List[float] = [40, 60, 5, 100],  # N, W, S, E - covers India
+        force: bool = False,
+    ) -> Path:
+        """
+        Download ERA5 daily precipitation data.
+
+        Parameters
+        ----------
+        year : int
+            Year to download
+        month : int
+            Month to download
+        area : list
+            Geographic area [North, West, South, East]
+        force : bool
+            If True, re-download even if file exists
+
+        Returns
+        -------
+        Path
+            Path to downloaded file
+        """
+        if self.client is None:
+            raise RuntimeError(
+                "CDS client not available. Install cdsapi and configure credentials."
+            )
+
+        filename = f"era5_precip_{year}{month:02d}.nc"
+        filepath = self.data_dir / filename
+
+        if filepath.exists() and not force:
+            logger.debug(f"Using cached file: {filepath}")
+            return filepath
+
+        logger.info(f"Downloading ERA5 precipitation for {year}-{month:02d}")
+
+        # Download total precipitation from single levels
+        self.client.retrieve(
+            "reanalysis-era5-single-levels",
+            {
+                "product_type": "reanalysis",
+                "variable": "total_precipitation",
+                "year": str(year),
+                "month": f"{month:02d}",
+                "day": [f"{d:02d}" for d in range(1, 32)],
+                "time": ["00:00", "06:00", "12:00", "18:00"],
+                "area": area,
+                "format": "netcdf",
+            },
+            str(filepath),
+        )
+
+        return filepath
+
+    def download_precipitation_years(
+        self,
+        years: List[int],
+        months: List[int] = [4, 5, 6, 7, 8, 9],
+        force: bool = False,
+    ) -> List[Path]:
+        """
+        Download ERA5 precipitation for multiple years.
+
+        Parameters
+        ----------
+        years : list of int
+            Years to download
+        months : list of int
+            Months to download
+        force : bool
+            If True, re-download even if files exist
+
+        Returns
+        -------
+        list of Path
+            Paths to downloaded files
+        """
+        filepaths = []
+        for year in years:
+            for month in months:
+                try:
+                    fp = self.download_precipitation(
+                        year=year,
+                        month=month,
+                        force=force,
+                    )
+                    filepaths.append(fp)
+                except Exception as e:
+                    logger.error(f"Failed to download precip for {year}-{month:02d}: {e}")
+        return filepaths
+
+    def load_precipitation(
+        self,
+        years: List[int],
+        months: List[int] = [4, 5, 6, 7, 8, 9],
+    ) -> xr.DataArray:
+        """
+        Load ERA5 precipitation and convert to daily mm/day.
+
+        ERA5 total_precipitation is in meters, accumulated over each hour.
+        We sum the 4 6-hourly values and convert to mm/day.
+
+        Parameters
+        ----------
+        years : list of int
+            Years to load
+        months : list of int
+            Months to load
+
+        Returns
+        -------
+        xr.DataArray
+            Daily precipitation in mm/day
+        """
+        datasets = []
+
+        for year in years:
+            for month in months:
+                filename = f"era5_precip_{year}{month:02d}.nc"
+                filepath = self.data_dir / filename
+
+                if not filepath.exists():
+                    logger.warning(f"File not found: {filepath}")
+                    continue
+
+                ds = xr.open_dataset(filepath)
+                ds = self._standardize_dimensions(ds)
+
+                # Rename variable if needed
+                for name in ["tp", "total_precipitation"]:
+                    if name in ds.data_vars:
+                        ds = ds.rename({name: "precipitation"})
+                        break
+
+                datasets.append(ds)
+
+        if not datasets:
+            raise FileNotFoundError("No ERA5 precipitation files found")
+
+        combined = xr.concat(datasets, dim="time")
+
+        # Convert from m (accumulated per hour) to mm/day
+        # Sum 6-hourly values to daily and convert m -> mm
+        daily = combined["precipitation"].resample(time="1D").sum() * 1000
+
+        daily.attrs["units"] = "mm/day"
+        daily.attrs["long_name"] = "Daily precipitation"
+
+        return daily
+
     def load_wyi_data(
         self,
         year: int,
@@ -406,3 +560,52 @@ def download_era5_for_wyi(
             print(f"  Completed {year}")
         except Exception as e:
             print(f"  Failed {year}: {e}")
+
+
+def download_era5_precipitation(
+    years: List[int],
+    data_dir: Union[str, Path] = "data/era5",
+    months: List[int] = [4, 5, 6, 7, 8, 9],
+) -> None:
+    """
+    Download ERA5 precipitation data over India.
+
+    This provides an alternative to IMD rainfall data for testing
+    the benchmarking framework. ERA5 precipitation is reanalysis-based,
+    not ground-truth observations like IMD.
+
+    Parameters
+    ----------
+    years : list of int
+        Years to download
+    data_dir : str or Path
+        Directory to save downloaded files
+    months : list of int
+        Months to download (default: Apr-Sep for monsoon season)
+
+    Example
+    -------
+    >>> from monsoon_benchmark.data.era5 import download_era5_precipitation
+    >>> download_era5_precipitation([2019, 2020, 2021, 2022, 2023, 2024])
+    """
+    if not HAS_CDSAPI:
+        raise ImportError(
+            "cdsapi is required for downloading ERA5 data.\n"
+            "Install with: pip install cdsapi\n"
+            "Then configure credentials: https://cds.climate.copernicus.eu/api-how-to"
+        )
+
+    loader = ERA5DataLoader(data_dir=data_dir)
+
+    total = len(years) * len(months)
+    count = 0
+
+    for year in years:
+        for month in months:
+            count += 1
+            print(f"[{count}/{total}] Downloading ERA5 precip {year}-{month:02d}...")
+            try:
+                loader.download_precipitation(year=year, month=month)
+                print(f"  Done")
+            except Exception as e:
+                print(f"  Failed: {e}")
