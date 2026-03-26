@@ -1,0 +1,184 @@
+# Monsoon Benchmark Configuration
+# Based on: "Decision-oriented benchmarking to transform AI weather forecast access"
+
+# Grid configuration
+grid:
+  resolution_deg: 4.0
+  lat_range: [6, 38]   # degrees North
+  lon_range: [66, 98]  # degrees East
+
+# Core Monsoon Zone (CMZ) boundaries
+# States with >200 million agricultural workers
+cmz:
+  lat_min: 18
+  lat_max: 28
+  lon_min: 74
+  lon_max: 86
+
+# Monsoon onset index parameters
+onset:
+  # Median date of Monsoon Onset over Kerala (MOK)
+  # Based on 124-year median (1901-2024): June 2nd
+  mok_median_date: "06-02"
+
+  # Wet day threshold (mm)
+  wet_day_threshold_mm: 1.0
+
+  # Wet spell duration (days)
+  wet_spell_days: 5
+
+  # Search window starts from (month-day)
+  search_start: "04-01"
+
+# Webster-Yang Index (WYI) parameters
+wyi:
+  # Averaging region for zonal wind
+  lon_range: [40, 110]  # degrees East
+  lat_range: [0, 20]    # degrees North
+
+  # Pressure levels (hPa)
+  upper_level: 200
+  lower_level: 850
+
+  # Smoothing window for onset detection (days)
+  smoothing_window: 7
+
+# Evaluation parameters
+evaluation:
+  # Forecast windows (days)
+  forecast_windows:
+    medium_range:
+      start: 1
+      end: 15
+    subseasonal:
+      start: 16
+      end: 30
+
+  # Tolerance for true positive classification (days)
+  tolerance_days:
+    medium_range: 3
+    subseasonal: 5
+
+  # Initialization frequency
+  init_frequency: "twice_weekly"  # Monday and Thursday
+  init_start: "05-02"  # May 2nd
+
+  # Maximum forecast length required (days)
+  # Need 35 days for 30-day forecast + 5-day wet spell check
+  max_forecast_days: 35
+
+# Probabilistic evaluation parameters
+probabilistic:
+  # Bin size for onset date categorization (days)
+  bin_size_days: 5
+
+  # Number of bins for 30-day forecast
+  # Bins: 1-5, 6-10, 11-15, 16-20, 21-25, 26-30, >30
+  n_bins: 7
+
+  # Number of bins for reliability diagram
+  reliability_bins: 10
+
+# Analysis periods
+periods:
+  recent_test:
+    name: "Recent Test Period"
+    years: [[2019, 2024]]
+    description: "Out-of-sample period for most AIWP models"
+
+  extended:
+    name: "Extended Period"
+    years: [[1965, 1978], [2019, 2024]]
+    description: "Pre-satellite + recent out-of-sample years"
+
+  common:
+    name: "Common Period"
+    years: [[2004, 2021]]
+    description: "Shared period for all models including IFS"
+
+  all_available:
+    name: "All Available Years"
+    years: [[1965, 2024]]
+    description: "Full historical period including training years"
+
+# Data sources
+data_sources:
+  imd:
+    url: "https://www.imdpune.gov.in/cmpg/Griddata/Rainfall_1_NetCDF.html"
+    resolution: 1.0  # degrees
+    variable: "rf"   # rainfall
+
+  era5:
+    dataset: "reanalysis-era5-pressure-levels"
+    variables:
+      - "u_component_of_wind"
+    pressure_levels:
+      - 200
+      - 850
+
+  ifs_s2s:
+    url: "https://apps.ecmwf.int/datasets/data/s2s"
+    model: "ecmf"
+    version: "Cy48r1"
+    ensemble_size: 11
+
+# Model configurations
+models:
+  ifs:
+    type: "NWP"
+    ensemble_size: 11
+    resolution_km: 32
+    source: "S2S database"
+
+  aifs:
+    type: "AIWP"
+    ensemble_size: 1
+    resolution_deg: 0.25
+    weights_url: "https://huggingface.co/ecmwf/aifs-single-1.0"
+    training_period: [1979, 2022]
+    finetuning_period: [2016, 2022]
+
+  fuxi:
+    type: "AIWP"
+    ensemble_size: 1
+    resolution_deg: 0.25
+    weights_url: "https://zenodo.org/records/10401602"
+    training_period: [1979, 2017]
+
+  graphcast:
+    type: "AIWP"
+    ensemble_size: 1
+    resolution_deg: 0.25
+    weights_url: "https://github.com/google-deepmind/graphcast"
+    training_period: [1979, 2017]
+
+  gencast:
+    type: "AIWP"
+    ensemble_size: 51
+    resolution_deg: 0.25
+    weights_url: "https://github.com/google-deepmind/graphcast"
+    training_period: [1979, 2018]
+    note: "~100x computational cost of other models"
+
+  fuxi_s2s:
+    type: "AIWP"
+    ensemble_size: 51
+    resolution_deg: 1.5
+    hindcast_url: "https://huggingface.co/datasets/FudanFuXi/FuXi-S2S"
+    training_period: [1950, 2016]
+    note: "Weights not public, only hindcasts available"
+
+  neuralgcm:
+    type: "AIWP"
+    ensemble_size: 51
+    resolution_deg: 2.8
+    weights_url: "https://neuralgcm.readthedocs.io/en/latest/checkpoints.html"
+    training_period: [2001, 2018]
+    note: "Requires SST/sea-ice boundary conditions"
+
+# Output configuration
+output:
+  base_dir: "outputs"
+  figures_dir: "figures"
+  metrics_dir: "metrics"
+  hindcasts_dir: "hindcasts"

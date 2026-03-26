@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "monsoon-benchmark"
+version = "0.1.0"
+description = "Decision-oriented benchmarking framework for AI weather prediction models on Indian monsoon onset"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Monsoon Benchmark Team"}
+]
+keywords = ["weather", "monsoon", "AI", "benchmarking", "forecasting", "India"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Atmospheric Science",
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "xarray>=2023.0",
+    "pandas>=2.0",
+    "scipy>=1.10",
+    "netCDF4>=1.6",
+    "cdsapi>=0.6",
+    "xesmf>=0.8",
+    "cartopy>=0.22",
+    "matplotlib>=3.7",
+    "scikit-learn>=1.3",
+    "pyyaml>=6.0",
+    "tqdm>=4.65",
+    "dask>=2023.0",
+    "pooch>=1.7",
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+models = [
+    "ai-models-graphcast>=0.2",
+    "neuralgcm>=0.1",
+    "huggingface-hub>=0.19",
+    "jax>=0.4",
+    "jaxlib>=0.4",
+    "torch>=2.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+    "jupyter>=1.0",
+    "ipykernel>=6.0",
+]
+all = ["monsoon-benchmark[models,dev]"]
+
+[project.urls]
+"Homepage" = "https://github.com/envfluids/monsoon-benchmark"
+"Bug Tracker" = "https://github.com/envfluids/monsoon-benchmark/issues"
+
+[project.scripts]
+monsoon-benchmark = "monsoon_benchmark.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+monsoon_benchmark = ["py.typed", "configs/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --cov=monsoon_benchmark --cov-report=term-missing"
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
