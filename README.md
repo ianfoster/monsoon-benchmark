@@ -131,7 +131,9 @@ grid:
 
 This implementation is based on:
 
-> Decision-oriented benchmarking to transform AI weather forecast access: Application to the Indian monsoon
+> Masiwal et al., "Decision-oriented benchmarking to transform AI weather forecast access: Application to the Indian monsoon"
+>
+> arXiv: [https://arxiv.org/abs/2602.03767](https://arxiv.org/abs/2602.03767)
 
 ## License
 

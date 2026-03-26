@@ -2,8 +2,9 @@
 Monsoon Benchmark: Decision-oriented benchmarking for AI weather prediction models.
 
 This package implements the framework described in:
-"Decision-oriented benchmarking to transform AI weather forecast access:
+Masiwal et al., "Decision-oriented benchmarking to transform AI weather forecast access:
 Application to the Indian monsoon"
+https://arxiv.org/abs/2602.03767
 
 Main components:
 - data: Data loading and preprocessing (IMD, ERA5, regridding)
