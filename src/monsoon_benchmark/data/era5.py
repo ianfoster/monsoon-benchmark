@@ -363,3 +363,46 @@ def create_synthetic_era5_data(
         logger.info(f"Created synthetic ERA5 data: {filepath}")
 
     return filepaths
+
+
+def download_era5_for_wyi(
+    years: List[int],
+    data_dir: Union[str, Path] = "data/era5",
+    months: List[int] = [4, 5, 6, 7, 8, 9],
+) -> None:
+    """
+    Download ERA5 u-wind data needed for Webster-Yang Index.
+
+    Requires cdsapi to be installed and configured with CDS credentials.
+    Get credentials at: https://cds.climate.copernicus.eu/
+
+    Parameters
+    ----------
+    years : list of int
+        Years to download (e.g., [2019, 2020, 2021, 2022, 2023, 2024])
+    data_dir : str or Path
+        Directory to save downloaded files
+    months : list of int
+        Months to download (default: Apr-Sep for monsoon season)
+
+    Example
+    -------
+    >>> from monsoon_benchmark.data.era5 import download_era5_for_wyi
+    >>> download_era5_for_wyi([2019, 2020, 2021, 2022, 2023, 2024])
+    """
+    if not HAS_CDSAPI:
+        raise ImportError(
+            "cdsapi is required for downloading ERA5 data.\n"
+            "Install with: pip install cdsapi\n"
+            "Then configure credentials: https://cds.climate.copernicus.eu/api-how-to"
+        )
+
+    loader = ERA5DataLoader(data_dir=data_dir)
+
+    for year in years:
+        print(f"Downloading ERA5 data for {year}...")
+        try:
+            loader.download_for_wyi(year=year, months=months)
+            print(f"  Completed {year}")
+        except Exception as e:
+            print(f"  Failed {year}: {e}")
